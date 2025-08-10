@@ -1,5 +1,6 @@
 import Credentials from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import GithubProvider from "next-auth/providers/github";
 import prisma from "./prismaSingleton";
 import bcrypt from "bcrypt";
 import type { NextAuthOptions } from "next-auth";
@@ -10,10 +11,14 @@ export const authProviders: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
+    GithubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+    }),
     Credentials({
       name: "Credentials",
       credentials: {
-        username: { label: "Username", type: "text", placeholder: "Username" },
+        name: { label: "Username", type: "text", placeholder: "Username" },
         email: { label: "Email", type: "text", placeholder: "Username" },
         password: { label: "Password", type: "password" },
       },
@@ -21,7 +26,7 @@ export const authProviders: NextAuthOptions = {
         if (
           !credentials?.password ||
           !credentials?.email ||
-          !credentials.username
+          !credentials.name
         ) {
           return null;
         }
@@ -55,74 +60,28 @@ export const authProviders: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  pages: {
+    signIn: "/signin",
+  },
+  // Handler callbacks accrording to your need.
   callbacks: {
     async signIn({ user, account }) {
       try {
-        if (account?.provider === "google") {
-          const email = user?.email ?? undefined;
-          if (!email) return false;
+        await prisma.user.upsert({
+          where: { email: user.email as string },
+          update: { provider: account?.provider.toUpperCase() },
+          create: {
+            name: user.name as string,
+            email: user.email as string,
+            provider: account?.provider.toUpperCase() as string,
+          },
+        });
 
-          const existingUser = await prisma.user.findFirst({
-            where: { email },
-          });
-
-          if (!existingUser) {
-            await prisma.user.create({
-              data: {
-                email,
-                name: user?.name ?? "",
-                provider: "GOOGLE",
-              },
-            });
-          }
-        }
         return true;
       } catch (error) {
-        console.error("signIn callback error", error);
+        console.log(error);
         return false;
       }
-    },
-    async jwt({ token, user }) {
-      // On initial sign in, persist user fields onto the token
-      if (user) {
-        (token as any).id = (user as any).id;
-        token.email = user.email ?? token.email;
-        token.name = user.name ?? token.name;
-      }
-
-      // Backfill id on subsequent requests if missing
-      if (!(token as any).id && token.email) {
-        try {
-          const dbUser = await prisma.user.findFirst({
-            where: { email: token.email },
-          });
-          if (dbUser) {
-            (token as any).id = dbUser.id.toString();
-          }
-        } catch {}
-      }
-
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).id = (token as any).id ?? token.sub ?? null;
-        session.user.email = token.email ?? session.user.email ?? null;
-        session.user.name = token.name ?? session.user.name ?? null;
-      }
-      return session;
-    },
-    async redirect({ url, baseUrl }) {
-      try {
-        const urlObject = new URL(url, baseUrl);
-        if (urlObject.origin === baseUrl || url.startsWith("/")) {
-          return urlObject.pathname.startsWith("/")
-            ? urlObject.toString()
-            : `${baseUrl}${urlObject.pathname}${urlObject.search}`;
-        }
-      } catch {}
-      return baseUrl;
     },
   },
 };

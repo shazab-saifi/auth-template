@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
+import Link from "next/link";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -13,6 +14,8 @@ export default function Home() {
     );
   }
 
+  console.log(session);
+
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center gap-6 text-center">
       <div className="text-2xl font-semibold">NextAuth Template</div>
@@ -23,7 +26,7 @@ export default function Home() {
             <span className="font-semibold">{session.user.email}</span>
           </div>
           <button
-            className="rounded bg-black px-4 py-2 text-white hover:opacity-90"
+            className="rounded bg-white px-4 py-2 text-black transition-colors hover:bg-gray-100"
             onClick={() => signOut()}
           >
             Sign out
@@ -31,24 +34,18 @@ export default function Home() {
         </div>
       ) : (
         <div className="flex gap-3">
-          <button
-            className="rounded bg-black px-4 py-2 text-white hover:opacity-90"
-            onClick={() => signIn("google")}
+          <Link
+            href="/signin"
+            className="rounded bg-white px-4 py-2 text-black transition-colors hover:bg-gray-100"
           >
-            Sign in with Google
-          </button>
-          <button
-            className="rounded border border-black px-4 py-2 hover:bg-gray-50"
-            onClick={() =>
-              signIn("credentials", {
-                email: "user@example.com",
-                username: "user",
-                password: "password",
-              })
-            }
+            Sign in
+          </Link>
+          <Link
+            href="/signup"
+            className="rounded bg-white px-4 py-2 text-black transition-colors hover:bg-gray-100"
           >
-            Demo credentials sign-in
-          </button>
+            Sign Up
+          </Link>
         </div>
       )}
     </div>

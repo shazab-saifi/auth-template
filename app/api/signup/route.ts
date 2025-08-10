@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prismaSingleton";
+import bcrypt from "bcrypt";
 
 // Edit this endpoint according to your need
-export default async function POST(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log(body);
-    if (!body.email || !body.username || !body.password) {
+    if (!body.email || !body.name || !body.password) {
       return NextResponse.json(
         {
           error: "Incomplete credentials provided!",
@@ -28,10 +29,12 @@ export default async function POST(req: NextRequest) {
       );
     }
 
+    const hashedPassword = await bcrypt.hash(body.password, 10);
+
     const user = await prisma.user.create({
       data: {
         email: body.email,
-        password: body.password,
+        password: hashedPassword,
         name: body.name,
         provider: "CREDENTIALS",
       },
